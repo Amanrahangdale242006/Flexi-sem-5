@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from backend.app.config import APP_NAME, APP_DESCRIPTION, APP_VERSION, BASE_DIR
 from backend.app.database import engine, Base, get_db
 from backend.app.services.seed_data import seed_database
-from backend.app.routers import jobs, interviewers, candidates, booking, interviews, analytics
+from backend.app.routers import jobs, interviewers, candidates, booking, interviews, analytics, public
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -37,6 +37,7 @@ app.include_router(candidates.router)
 app.include_router(booking.router)
 app.include_router(interviews.router)
 app.include_router(analytics.router)
+app.include_router(public.router)
 
 # Automatic startup seeding
 @app.on_event("startup")
@@ -73,3 +74,7 @@ def booking_page(request: Request, token: str):
 @app.get("/feedback/{interview_id}", response_class=HTMLResponse)
 def feedback_page(request: Request, interview_id: int):
     return templates.TemplateResponse(request=request, name="feedback.html", context={"interview_id": interview_id, "page_title": "Interview Evaluation"})
+
+@app.get("/apply", response_class=HTMLResponse)
+def apply_page(request: Request):
+    return templates.TemplateResponse(request=request, name="apply.html", context={"page_title": "Careers & Instant Scheduling"})
