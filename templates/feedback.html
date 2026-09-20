@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div x-data="feedbackScorecard({{ interview_id }})" x-init="init()" class="max-w-3xl mx-auto space-y-6">
+
+    <!-- Header & Interview Summary Banner -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-100 pb-4">
+            <div>
+                <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-brand-50 text-brand-700 border border-brand-200">
+                    Evaluation Scorecard
+                </span>
+                <h1 class="text-2xl font-bold text-slate-900 mt-1" x-text="`Candidate: ${interview.candidate_name || 'Loading...'}`"></h1>
+                <p class="text-xs text-slate-500" x-text="`Job: ${interview.job_title} | Interviewer: ${interview.interviewer_name}`"></p>
+            </div>
+            <a href="/" class="text-xs font-semibold text-slate-500 hover:text-slate-800 flex items-center">
+                &larr; Back to Dashboard
+            </a>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+            <div>
+                <span class="text-slate-400">Date & Time</span>
+                <p class="font-semibold text-slate-800 mt-0.5" x-text="formatDateTime(interview.start_time)"></p>
+            </div>
+            <div>
+                <span class="text-slate-400">Status</span>
+                <p class="font-semibold text-slate-800 mt-0.5" x-text="interview.status"></p>
+            </div>
+            <div>
+                <span class="text-slate-400">Candidate Email</span>
+                <p class="font-semibold text-slate-800 mt-0.5" x-text="interview.candidate_email"></p>
+            </div>
+            <div>
+                <span class="text-slate-400">Meeting Room</span>
+                <p class="font-semibold text-emerald-600 mt-0.5">
+                    <a :href="interview.meeting_link" target="_blank" class="underline hover:text-emerald-700">Open Room</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Read-Only Mode (If Feedback Already Submitted) -->
+    <div x-show="existingFeedback" x-cloak class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+            <h2 class="text-lg font-bold text-slate-900">Submitted Evaluation</h2>
+            <span :class="{
+                'bg-emerald-100 text-emerald-800 border-emerald-200': ['STRONG_HIRE', 'HIRE'].includes(existingFeedback?.overall_recommendation),
+                'bg-amber-100 text-amber-800 border-amber-200': existingFeedback?.overall_recommendation === 'HOLD',
+                'bg-rose-100 text-rose-800 border-rose-200': existingFeedback?.overall_recommendation === 'REJECT'
+            }" class="px-3 py-1 rounded-full text-xs font-bold border" x-text="`Recommendation: ${existingFeedback?.overall_recommendation}`"></span>
+        </div>
+
+        <!-- Scores Grid -->
+        <div class="grid grid-cols-3 gap-4 text-center">
+            <div class="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                <span class="text-xs text-slate-500 font-semibold">Technical Score</span>
+                <div class="text-2xl font-extrabold text-brand-600 mt-1" x-text="`${existingFeedback?.technical_score} / 5`"></div>
+            </div>
+            <div class="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                <span class="text-xs text-slate-500 font-semibold">Communication</span>
+                <div class="text-2xl font-extrabold text-brand-600 mt-1" x-text="`${existingFeedback?.communication_score} / 5`"></div>
+            </div>
+            <div class="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                <span class="text-xs text-slate-500 font-semibold">Problem Solving</span>
+                <div class="text-2xl font-extrabold text-brand-600 mt-1" x-text="`${existingFeedback?.problem_solving_score} / 5`"></div>
+            </div>
+        </div>
+
+        <div class="space-y-4 text-sm text-slate-700">
+            <div>
+                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Key Strengths</h4>
+                <p class="p-3 bg-slate-50 rounded-xl border border-slate-100" x-text="existingFeedback?.strengths || 'None specified'"></p>
+            </div>
+            <div>
+                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Areas for Growth / Weaknesses</h4>
+                <p class="p-3 bg-slate-50 rounded-xl border border-slate-100" x-text="existingFeedback?.weaknesses || 'None specified'"></p>
+            </div>
+            <div>
+                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Detailed Interview Notes</h4>
+                <p class="p-3 bg-slate-50 rounded-xl border border-slate-100 whitespace-pre-wrap" x-text="existingFeedback?.notes || 'No extra notes'"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feedback Submission Form -->
+    <div x-show="!existingFeedback && !loading" x-cloak class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6">
+        <div class="border-b border-slate-100 pb-3">
+            <h2 class="text-lg font-bold text-slate-900">Scorecard Assessment Form</h2>
+            <p class="text-xs text-slate-500">Rate the candidate across core competencies and provide your recommendation</p>
+        </div>
+
+        <form @submit.prevent="submitEvaluation()" class="space-y-6 text-sm">
+            <!-- Score Sliders / Selectors -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <!-- Technical -->
+                <div class="space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <div class="flex justify-between items-center">
+                        <label class="font-bold text-slate-700 text-xs">Technical Skill</label>
+                        <span class="text-brand-600 font-extrabold text-sm" x-text="`${formData.technical_score} / 5`"></span>
+                    </div>
+                    <input type="range" min="1" max="5" step="1" x-model.number="formData.technical_score" class="w-full accent-brand-600">
+                    <div class="flex justify-between text-[10px] text-slate-400">
+                        <span>Basic</span>
+                        <span>Expert</span>
+                    </div>
+                </div>
+
+                <!-- Communication -->
+                <div class="space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <div class="flex justify-between items-center">
+                        <label class="font-bold text-slate-700 text-xs">Communication</label>
+                        <span class="text-brand-600 font-extrabold text-sm" x-text="`${formData.communication_score} / 5`"></span>
+                    </div>
+                    <input type="range" min="1" max="5" step="1" x-model.number="formData.communication_score" class="w-full accent-brand-600">
+                    <div class="flex justify-between text-[10px] text-slate-400">
+                        <span>Needs Work</span>
+                        <span>Fluent</span>
+                    </div>
+                </div>
+
+                <!-- Problem Solving -->
+                <div class="space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <div class="flex justify-between items-center">
+                        <label class="font-bold text-slate-700 text-xs">Problem Solving</label>
+                        <span class="text-brand-600 font-extrabold text-sm" x-text="`${formData.problem_solving_score} / 5`"></span>
+                    </div>
+                    <input type="range" min="1" max="5" step="1" x-model.number="formData.problem_solving_score" class="w-full accent-brand-600">
+                    <div class="flex justify-between text-[10px] text-slate-400">
+                        <span>Slow</span>
+                        <span>Exceptional</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Overall Recommendation -->
+            <div>
+                <label class="block font-bold text-slate-700 text-xs mb-1.5 uppercase tracking-wider">Overall Recommendation *</label>
+                <select x-model="formData.overall_recommendation" required class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 bg-white font-medium">
+                    <option value="STRONG_HIRE">Strong Hire - Top 5% candidate</option>
+                    <option value="HIRE">Hire - Meets and exceeds role standards</option>
+                    <option value="HOLD">Hold - Needs additional evaluation round</option>
+                    <option value="REJECT">Reject - Not suitable for current requirements</option>
+                </select>
+            </div>
+
+            <!-- Strengths -->
+            <div>
+                <label class="block font-bold text-slate-700 text-xs mb-1 uppercase tracking-wider">Key Strengths</label>
+                <textarea rows="2" x-model="formData.strengths" placeholder="e.g. Excellent architectural understanding of microservices..." class="w-full px-3.5 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 text-xs"></textarea>
+            </div>
+
+            <!-- Weaknesses -->
+            <div>
+                <label class="block font-bold text-slate-700 text-xs mb-1 uppercase tracking-wider">Areas for Growth</label>
+                <textarea rows="2" x-model="formData.weaknesses" placeholder="e.g. Needs deeper familiarity with Kubernetes manifests..." class="w-full px-3.5 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 text-xs"></textarea>
+            </div>
+
+            <!-- General Notes -->
+            <div>
+                <label class="block font-bold text-slate-700 text-xs mb-1 uppercase tracking-wider">General Interview Notes</label>
+                <textarea rows="3" x-model="formData.notes" placeholder="Candidate answers, code test feedback, cultural fit..." class="w-full px-3.5 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 text-xs"></textarea>
+            </div>
+
+            <!-- Submit -->
+            <div class="pt-4 border-t border-slate-100 flex justify-end space-x-3">
+                <a href="/" class="px-5 py-2.5 border border-slate-200 rounded-xl text-slate-600 font-semibold hover:bg-slate-50 transition">Cancel</a>
+                <button type="submit" class="px-6 py-2.5 bg-brand-600 hover:bg-brand-500 text-white font-semibold rounded-xl shadow-md shadow-brand-600/20 transition">
+                    Submit Evaluation
+                </button>
+            </div>
+        </form>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function feedbackScorecard(interviewId) {
+    return {
+        interviewId: interviewId,
+        loading: true,
+        interview: {},
+        existingFeedback: null,
+        formData: {
+            interview_id: interviewId,
+            technical_score: 4,
+            communication_score: 4,
+            problem_solving_score: 4,
+            overall_recommendation: 'HIRE',
+            strengths: '',
+            weaknesses: '',
+            notes: ''
+        },
+
+        async init() {
+            try {
+                const res = await fetch(`/api/interviews/${this.interviewId}`);
+                if (res.ok) {
+                    this.interview = await res.json();
+                }
+
+                // Check for existing feedback
+                const fbRes = await fetch(`/api/interviews/${this.interviewId}/feedback`);
+                if (fbRes.ok) {
+                    this.existingFeedback = await fbRes.json();
+                }
+            } catch (err) {
+                console.error("Error loading scorecard:", err);
+            } finally {
+                this.loading = false;
+                this.$nextTick(() => lucide.createIcons());
+            }
+        },
+
+        formatDateTime(dateStr) {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            return d.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        },
+
+        async submitEvaluation() {
+            try {
+                const res = await fetch(`/api/interviews/${this.interviewId}/feedback`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.formData)
+                });
+
+                if (res.ok) {
+                    showToast("Scorecard submitted! Candidate status updated.", "success");
+                    this.existingFeedback = await res.json();
+                    this.$nextTick(() => lucide.createIcons());
+                } else {
+                    const err = await res.json();
+                    showToast(err.detail || "Failed to submit evaluation", "error");
+                }
+            } catch (err) {
+                showToast("Network error submitting evaluation", "error");
+            }
+        }
+    }
+}
+</script>
+{% endblock %}

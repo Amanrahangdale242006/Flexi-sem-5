@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div x-data="candidatesData()" x-init="init()" class="space-y-6">
+
+    <!-- Header & Action Button -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900">Candidate Pipeline</h1>
+            <p class="text-sm text-slate-500">Manage candidates and issue automated self-service interview booking links</p>
+        </div>
+        <button @click="openInviteModal = true" class="inline-flex items-center px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-sm font-semibold shadow-md shadow-brand-600/20 transition">
+            <i data-lucide="user-plus" class="w-4 h-4 mr-2"></i> Invite New Candidate
+        </button>
+    </div>
+
+    <!-- Candidate List Table -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-6 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="relative flex-1 max-w-sm">
+                <i data-lucide="search" class="w-4 h-4 absolute left-3 top-3 text-slate-400"></i>
+                <input type="text" x-model="searchQuery" placeholder="Search by name, email, or job..." class="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
+            </div>
+            <div class="text-xs text-slate-500 font-medium">
+                Total: <span class="font-bold text-slate-800" x-text="filteredCandidates.length"></span> candidates
+            </div>
+        </div>
+
+        <div class="overflow-x-auto border border-slate-100 rounded-xl">
+            <table class="w-full text-left text-sm text-slate-600">
+                <thead class="bg-slate-50 text-slate-700 text-xs uppercase tracking-wider font-semibold border-b border-slate-200">
+                    <tr>
+                        <th class="py-3.5 px-4">Candidate</th>
+                        <th class="py-3.5 px-4">Target Job</th>
+                        <th class="py-3.5 px-4">Status</th>
+                        <th class="py-3.5 px-4">Magic Booking Link</th>
+                        <th class="py-3.5 px-4 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    <template x-for="c in filteredCandidates" :key="c.id">
+                        <tr class="hover:bg-slate-50/80 transition">
+                            <!-- Name & Email -->
+                            <td class="py-3.5 px-4">
+                                <div class="font-semibold text-slate-900" x-text="c.name"></div>
+                                <div class="text-xs text-slate-400" x-text="c.email"></div>
+                                <div class="text-xs text-slate-400 font-mono" x-text="c.phone"></div>
+                            </td>
+                            <!-- Job -->
+                            <td class="py-3.5 px-4">
+                                <span class="font-medium text-slate-800" x-text="c.job_title"></span>
+                            </td>
+                            <!-- Status -->
+                            <td class="py-3.5 px-4">
+                                <span :class="{
+                                    'bg-amber-100 text-amber-800 border-amber-200': c.status === 'INVITED',
+                                    'bg-indigo-100 text-indigo-800 border-indigo-200': c.status === 'SCHEDULED',
+                                    'bg-blue-100 text-blue-800 border-blue-200': c.status === 'COMPLETED',
+                                    'bg-emerald-100 text-emerald-800 border-emerald-200': c.status === 'HIRED',
+                                    'bg-rose-100 text-rose-800 border-rose-200': c.status === 'REJECTED'
+                                }" class="px-2.5 py-0.5 rounded-full text-xs font-semibold border inline-block" x-text="c.status"></span>
+                            </td>
+                            <!-- Magic Booking Link -->
+                            <td class="py-3.5 px-4">
+                                <div class="flex items-center space-x-2">
+                                    <input readonly :value="getBookingUrl(c.invite_token)" class="bg-slate-50 border border-slate-200 text-xs px-2.5 py-1.5 rounded-lg text-slate-600 font-mono max-w-[220px] select-all">
+                                    <button @click="copyBookingLink(c.invite_token)" title="Copy Link" class="p-1.5 text-brand-600 hover:bg-brand-50 rounded-lg transition border border-brand-200">
+                                        <i data-lucide="copy" class="w-4 h-4"></i>
+                                    </button>
+                                    <a :href="`/book/${c.invite_token}`" target="_blank" title="Open Candidate Booking View" class="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition border border-emerald-200">
+                                        <i data-lucide="external-link" class="w-4 h-4"></i>
+                                    </a>
+                                </div>
+                            </td>
+                            <!-- Actions -->
+                            <td class="py-3.5 px-4 text-right space-x-1 whitespace-nowrap">
+                                <button @click="regenerateToken(c.id)" title="Regenerate Invite Token" class="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition">
+                                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                                </button>
+                                <button @click="deleteCandidate(c.id)" title="Remove Candidate" class="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    </template>
+                    <tr x-show="filteredCandidates.length === 0">
+                        <td colspan="5" class="text-center py-8 text-slate-400 text-sm">
+                            No candidates found matching your search.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Invite Candidate Modal -->
+    <div x-show="openInviteModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div @click.away="openInviteModal = false" class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="text-lg font-bold text-slate-900">Invite Candidate to Interview</h3>
+                <button @click="openInviteModal = false" class="text-slate-400 hover:text-slate-600">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form @submit.prevent="submitCandidateInvite()" class="space-y-4 text-sm">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Full Name *</label>
+                    <input type="text" x-model="newCandidate.name" required placeholder="e.g. Alex Morgan" class="w-full px-3.5 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Email Address *</label>
+                    <input type="email" x-model="newCandidate.email" required placeholder="alex.morgan@example.com" class="w-full px-3.5 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Phone Number</label>
+                        <input type="text" x-model="newCandidate.phone" placeholder="+1 555-0199" class="w-full px-3.5 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Job Opening *</label>
+                        <select x-model="newCandidate.job_id" required class="w-full px-3.5 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none bg-white">
+                            <option value="">Select Job...</option>
+                            <template x-for="j in jobs" :key="j.id">
+                                <option :value="j.id" x-text="j.title"></option>
+                            </template>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Resume Link (Optional)</label>
+                    <input type="url" x-model="newCandidate.resume_url" placeholder="https://linkedin.com/in/... or drive link" class="w-full px-3.5 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                </div>
+
+                <div class="pt-2 flex justify-end space-x-3">
+                    <button type="button" @click="openInviteModal = false" class="px-4 py-2 border border-slate-200 rounded-xl text-slate-600 font-semibold hover:bg-slate-50 transition">Cancel</button>
+                    <button type="submit" class="px-5 py-2 bg-brand-600 hover:bg-brand-500 text-white font-semibold rounded-xl shadow-md shadow-brand-600/20 transition">Create & Generate Link</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function candidatesData() {
+    return {
+        candidates: [],
+        jobs: [],
+        searchQuery: '',
+        openInviteModal: false,
+        newCandidate: {
+            name: '',
+            email: '',
+            phone: '',
+            resume_url: '',
+            job_id: ''
+        },
+
+        async init() {
+            await this.loadCandidates();
+            await this.loadJobs();
+            this.$nextTick(() => lucide.createIcons());
+        },
+
+        async loadCandidates() {
+            try {
+                const res = await fetch('/api/candidates/');
+                this.candidates = await res.json();
+            } catch (err) {
+                console.error("Error loading candidates:", err);
+            }
+        },
+
+        async loadJobs() {
+            try {
+                const res = await fetch('/api/jobs/');
+                this.jobs = await res.json();
+            } catch (err) {
+                console.error("Error loading jobs:", err);
+            }
+        },
+
+        get filteredCandidates() {
+            if (!this.searchQuery.trim()) return this.candidates;
+            const q = this.searchQuery.toLowerCase();
+            return this.candidates.filter(c => 
+                c.name.toLowerCase().includes(q) ||
+                c.email.toLowerCase().includes(q) ||
+                (c.job_title && c.job_title.toLowerCase().includes(q))
+            );
+        },
+
+        getBookingUrl(token) {
+            return `${window.location.origin}/book/${token}`;
+        },
+
+        async copyBookingLink(token) {
+            const url = this.getBookingUrl(token);
+            try {
+                await navigator.clipboard.writeText(url);
+                showToast("Magic booking link copied to clipboard!", "success");
+            } catch (err) {
+                prompt("Copy this booking link:", url);
+            }
+        },
+
+        async submitCandidateInvite() {
+            try {
+                const res = await fetch('/api/candidates/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.newCandidate)
+                });
+                if (res.ok) {
+                    showToast("Candidate invited! Magic link generated.", "success");
+                    this.openInviteModal = false;
+                    this.newCandidate = { name: '', email: '', phone: '', resume_url: '', job_id: '' };
+                    await this.loadCandidates();
+                    this.$nextTick(() => lucide.createIcons());
+                } else {
+                    const err = await res.json();
+                    showToast(err.detail || "Failed to invite candidate", "error");
+                }
+            } catch (err) {
+                showToast("Network error.", "error");
+            }
+        },
+
+        async regenerateToken(id) {
+            try {
+                const res = await fetch(`/api/candidates/${id}/regenerate-token`, { method: 'POST' });
+                if (res.ok) {
+                    showToast("New token generated!", "success");
+                    await this.loadCandidates();
+                }
+            } catch (err) {
+                showToast("Failed to regenerate token", "error");
+            }
+        },
+
+        async deleteCandidate(id) {
+            if (!confirm("Are you sure you want to remove this candidate?")) return;
+            try {
+                const res = await fetch(`/api/candidates/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    showToast("Candidate removed.", "info");
+                    await this.loadCandidates();
+                }
+            } catch (err) {
+                showToast("Failed to delete candidate", "error");
+            }
+        }
+    }
+}
+</script>
+{% endblock %}

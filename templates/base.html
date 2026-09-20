@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title }} - AutoSchedule AI</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            800: '#3730a3',
+                            900: '#312e81',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Alpine.js CDN for reactive UI -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.5/dist/cdn.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(8px);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col font-sans">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <!-- Logo & Project Title -->
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center text-white shadow-md shadow-brand-500/20">
+                        <i data-lucide="calendar-check" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <a href="/" class="text-xl font-bold bg-gradient-to-r from-brand-600 to-indigo-800 bg-clip-text text-transparent">AutoSchedule AI</a>
+                        <span class="hidden sm:inline-block ml-2 text-xs uppercase tracking-wider px-2 py-0.5 rounded-full bg-brand-100 text-brand-700 font-semibold">College Project Edition</span>
+                    </div>
+                </div>
+
+                <!-- Navigation Links -->
+                <nav class="hidden md:flex space-x-1 lg:space-x-4">
+                    <a href="/" class="px-3 py-2 rounded-lg text-sm font-medium transition {% if page_title == 'Dashboard' %}text-brand-600 bg-brand-50 font-semibold{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100{% endif %}">
+                        <i data-lucide="layout-dashboard" class="w-4 h-4 inline mr-1"></i> Dashboard
+                    </a>
+                    <a href="/candidates" class="px-3 py-2 rounded-lg text-sm font-medium transition {% if page_title == 'Candidates' %}text-brand-600 bg-brand-50 font-semibold{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100{% endif %}">
+                        <i data-lucide="users" class="w-4 h-4 inline mr-1"></i> Candidates
+                    </a>
+                    <a href="/interviewers" class="px-3 py-2 rounded-lg text-sm font-medium transition {% if page_title == 'Interviewers & Availability' %}text-brand-600 bg-brand-50 font-semibold{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100{% endif %}">
+                        <i data-lucide="calendar-range" class="w-4 h-4 inline mr-1"></i> Interviewers
+                    </a>
+                    <a href="/jobs" class="px-3 py-2 rounded-lg text-sm font-medium transition {% if page_title == 'Job Openings' %}text-brand-600 bg-brand-50 font-semibold{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100{% endif %}">
+                        <i data-lucide="briefcase" class="w-4 h-4 inline mr-1"></i> Jobs
+                    </a>
+                </nav>
+
+                <!-- Actions: Quick Demo Reset & Status -->
+                <div class="flex items-center space-x-3">
+                    <button onclick="resetDemoData()" title="Reset to clean presentation data" class="inline-flex items-center text-xs font-semibold px-3 py-1.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 transition shadow-sm">
+                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 mr-1.5"></i> Reset Demo Data
+                    </button>
+                    <div class="h-8 w-px bg-slate-200 hidden sm:block"></div>
+                    <div class="flex items-center space-x-2">
+                        <div class="w-8 h-8 rounded-full bg-slate-200 border border-slate-300 flex items-center justify-center font-bold text-slate-700 text-xs">
+                            HR
+                        </div>
+                        <span class="text-sm font-medium text-slate-700 hidden lg:inline">Recruiter Portal</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center space-y-2 sm:space-y-0">
+            <p>Automated Interview Scheduling System &copy; 2026. Built with FastAPI, SQLite & Tailwind CSS.</p>
+            <div class="flex items-center space-x-4">
+                <span class="inline-flex items-center text-emerald-600 font-medium">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span> Engine Online
+                </span>
+                <a href="/docs" target="_blank" class="hover:text-brand-600 underline">API Docs (Swagger)</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Global Toast Notification -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 max-w-md bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl flex items-center space-x-3 pointer-events-none">
+        <i id="toast-icon" data-lucide="info" class="w-5 h-5 text-brand-400"></i>
+        <span id="toast-message" class="text-sm font-medium">Notification</span>
+    </div>
+
+    <script>
+        // Initialize Lucide Icons
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+        });
+
+        // Toast Helper
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-message');
+            const toastIcon = document.getElementById('toast-icon');
+
+            toastMsg.innerText = message;
+            toast.className = toast.className.replace(/translate-y-20 opacity-0/, 'translate-y-0 opacity-100');
+
+            if (type === 'success') {
+                toastIcon.setAttribute('data-lucide', 'check-circle');
+                toastIcon.className = "w-5 h-5 text-emerald-400";
+            } else if (type === 'error') {
+                toastIcon.setAttribute('data-lucide', 'alert-circle');
+                toastIcon.className = "w-5 h-5 text-rose-400";
+            } else {
+                toastIcon.setAttribute('data-lucide', 'info');
+                toastIcon.className = "w-5 h-5 text-brand-400";
+            }
+            lucide.createIcons();
+
+            setTimeout(() => {
+                toast.className = toast.className.replace(/translate-y-0 opacity-100/, 'translate-y-20 opacity-0');
+            }, 3500);
+        }
+
+        // Demo Data Reset Helper
+        async function resetDemoData() {
+            if (!confirm("Reset database to clean presentation demo data? All test records will be refreshed.")) return;
+            try {
+                const res = await fetch('/api/analytics/reset-demo-data', { method: 'POST' });
+                if (res.ok) {
+                    showToast("Demo data refreshed successfully!", "success");
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    showToast("Failed to reset demo data", "error");
+                }
+            } catch (err) {
+                showToast("Network error resetting data", "error");
+            }
+        }
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

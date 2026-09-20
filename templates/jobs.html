@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div x-data="jobsData()" x-init="init()" class="space-y-6">
+
+    <!-- Header & Actions -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900">Job Openings</h1>
+            <p class="text-sm text-slate-500">Define job positions and technical skills used by the automated matching engine</p>
+        </div>
+        <button @click="openCreateJobModal = true" class="inline-flex items-center px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-sm font-semibold shadow-md shadow-brand-600/20 transition">
+            <i data-lucide="plus-circle" class="w-4 h-4 mr-2"></i> Create Job Role
+        </button>
+    </div>
+
+    <!-- Jobs Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <template x-for="job in jobs" :key="job.id">
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4 hover:shadow-md transition flex flex-col justify-between">
+                <div class="space-y-3">
+                    <div class="flex justify-between items-start">
+                        <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200" x-text="job.status"></span>
+                        <span class="text-xs text-slate-400 font-mono" x-text="job.department"></span>
+                    </div>
+
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900 leading-snug" x-text="job.title"></h3>
+                        <p class="text-xs text-slate-500 font-medium mt-0.5" x-text="`Experience: ${job.experience_level}`"></p>
+                    </div>
+
+                    <p class="text-xs text-slate-600 line-clamp-3 leading-relaxed" x-text="job.description"></p>
+
+                    <!-- Required Skills -->
+                    <div class="space-y-1.5 pt-2">
+                        <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Required Skills</p>
+                        <div class="flex flex-wrap gap-1.5">
+                            <template x-for="skill in getSkillList(job.required_skills)" :key="skill">
+                                <span class="text-xs px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md font-medium border border-indigo-100" x-text="skill"></span>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer with Delete -->
+                <div class="border-t border-slate-100 pt-4 flex justify-between items-center text-xs">
+                    <span class="text-slate-400">Target for auto-matching</span>
+                    <button @click="deleteJob(job.id)" class="text-rose-500 hover:text-rose-700 font-medium inline-flex items-center">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5 mr-1"></i> Delete
+                    </button>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <!-- Create Job Modal -->
+    <div x-show="openCreateJobModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div @click.away="openCreateJobModal = false" class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="text-lg font-bold text-slate-900">Post New Job Opening</h3>
+                <button @click="openCreateJobModal = false" class="text-slate-400 hover:text-slate-600">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form @submit.prevent="submitJob()" class="space-y-4 text-sm">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Job Title *</label>
+                    <input type="text" x-model="newJob.title" required placeholder="e.g. Full Stack Python Developer" class="w-full px-3.5 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Department</label>
+                        <input type="text" x-model="newJob.department" placeholder="Engineering / AI" class="w-full px-3.5 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Experience Level</label>
+                        <select x-model="newJob.experience_level" class="w-full px-3.5 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none bg-white">
+                            <option value="Entry-Level (0-2 yrs)">Entry-Level (0-2 yrs)</option>
+                            <option value="Mid-Level (2-4 yrs)">Mid-Level (2-4 yrs)</option>
+                            <option value="Senior (4+ yrs)">Senior (4+ yrs)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Required Skills (Comma-separated) *</label>
+                    <input type="text" x-model="newJob.required_skills" required placeholder="Python, FastAPI, Docker, SQL" class="w-full px-3.5 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                    <p class="text-[11px] text-slate-400 mt-1">These skills are matched against interviewer profiles by the matching algorithm.</p>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Job Description</label>
+                    <textarea rows="3" x-model="newJob.description" placeholder="Key responsibilities and expectations..." class="w-full px-3.5 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none"></textarea>
+                </div>
+
+                <div class="pt-2 flex justify-end space-x-3">
+                    <button type="button" @click="openCreateJobModal = false" class="px-4 py-2 border border-slate-200 rounded-xl text-slate-600 font-semibold hover:bg-slate-50 transition">Cancel</button>
+                    <button type="submit" class="px-5 py-2 bg-brand-600 hover:bg-brand-500 text-white font-semibold rounded-xl shadow-md shadow-brand-600/20 transition">Create Job Role</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function jobsData() {
+    return {
+        jobs: [],
+        openCreateJobModal: false,
+        newJob: {
+            title: '',
+            department: 'Engineering',
+            experience_level: 'Mid-Level (2-4 yrs)',
+            required_skills: '',
+            description: '',
+            status: 'OPEN'
+        },
+
+        async init() {
+            await this.loadJobs();
+            this.$nextTick(() => lucide.createIcons());
+        },
+
+        async loadJobs() {
+            try {
+                const res = await fetch('/api/jobs/');
+                this.jobs = await res.json();
+            } catch (err) {
+                console.error("Error loading jobs:", err);
+            }
+        },
+
+        getSkillList(skillsStr) {
+            if (!skillsStr) return [];
+            return skillsStr.split(',').map(s => s.trim()).filter(Boolean);
+        },
+
+        async submitJob() {
+            try {
+                const res = await fetch('/api/jobs/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.newJob)
+                });
+                if (res.ok) {
+                    showToast("Job opening posted successfully!", "success");
+                    this.openCreateJobModal = false;
+                    this.newJob = { title: '', department: 'Engineering', experience_level: 'Mid-Level (2-4 yrs)', required_skills: '', description: '', status: 'OPEN' };
+                    await this.loadJobs();
+                    this.$nextTick(() => lucide.createIcons());
+                } else {
+                    showToast("Failed to post job", "error");
+                }
+            } catch (err) {
+                showToast("Network error", "error");
+            }
+        },
+
+        async deleteJob(jobId) {
+            if (!confirm("Are you sure you want to delete this job opening?")) return;
+            try {
+                const res = await fetch(`/api/jobs/${jobId}`, { method: 'DELETE' });
+                if (res.ok) {
+                    showToast("Job opening removed.", "info");
+                    await this.loadJobs();
+                } else {
+                    showToast("Failed to delete job", "error");
+                }
+            } catch (err) {
+                showToast("Network error", "error");
+            }
+        }
+    }
+}
+</script>
+{% endblock %}

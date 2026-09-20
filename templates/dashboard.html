@@ -1,0 +1,330 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div x-data="dashboardData()" x-init="init()" class="space-y-8">
+
+    <!-- Page Header & Welcome Banner -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-gradient-to-r from-brand-900 via-indigo-900 to-slate-900 text-white p-6 sm:p-8 rounded-2xl shadow-xl">
+        <div class="space-y-1">
+            <h1 class="text-2xl sm:text-3xl font-bold tracking-tight">Interview Scheduling Command Center</h1>
+            <p class="text-brand-200 text-sm max-w-2xl">
+                Automated matching engine, conflict-free slot allocation, and candidate self-booking pipeline.
+            </p>
+        </div>
+        <div class="flex flex-wrap gap-3">
+            <a href="/candidates" class="inline-flex items-center px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-sm font-semibold shadow-lg shadow-brand-600/30 transition">
+                <i data-lucide="user-plus" class="w-4 h-4 mr-2"></i> Invite Candidate
+            </a>
+            <a href="/interviewers" class="inline-flex items-center px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-semibold border border-white/20 transition">
+                <i data-lucide="calendar-plus" class="w-4 h-4 mr-2"></i> Manage Slots
+            </a>
+        </div>
+    </div>
+
+    <!-- 4 Key Metrics Overview -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <!-- Metric 1: Total Interviews -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Interviews</p>
+                <h3 class="text-3xl font-extrabold text-slate-900 mt-1" x-text="metrics.total_interviews">0</h3>
+                <p class="text-xs text-slate-400 mt-1">Across all active jobs</p>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <i data-lucide="calendar" class="w-6 h-6"></i>
+            </div>
+        </div>
+
+        <!-- Metric 2: Scheduled -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Upcoming Scheduled</p>
+                <h3 class="text-3xl font-extrabold text-emerald-600 mt-1" x-text="metrics.scheduled_interviews">0</h3>
+                <p class="text-xs text-emerald-600/80 mt-1">Confirmed & ready</p>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <i data-lucide="clock" class="w-6 h-6"></i>
+            </div>
+        </div>
+
+        <!-- Metric 3: Completed -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Completed & Evaluated</p>
+                <h3 class="text-3xl font-extrabold text-blue-600 mt-1" x-text="metrics.completed_interviews">0</h3>
+                <p class="text-xs text-blue-600/80 mt-1">Scorecards submitted</p>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                <i data-lucide="check-circle-2" class="w-6 h-6"></i>
+            </div>
+        </div>
+
+        <!-- Metric 4: Total Candidates -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Active Pipeline</p>
+                <h3 class="text-3xl font-extrabold text-purple-600 mt-1" x-text="metrics.total_candidates">0</h3>
+                <p class="text-xs text-purple-600/80 mt-1" x-text="`${metrics.total_jobs} open job roles`">Candidates</p>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+                <i data-lucide="users-2" class="w-6 h-6"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Middle Section: Workload Load Balancing & Pipeline Breakdown -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Interviewer Workload Balancing (2 cols) -->
+        <div class="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900">Interviewer Load Balancing</h2>
+                    <p class="text-xs text-slate-500">Automated workload distribution to prevent interviewer burnout</p>
+                </div>
+                <span class="text-xs px-2.5 py-1 bg-emerald-50 text-emerald-700 font-semibold rounded-full border border-emerald-200">
+                    Load Balancer Active
+                </span>
+            </div>
+
+            <div class="space-y-4 pt-2">
+                <template x-for="item in workload" :key="item.interviewer_id">
+                    <div class="space-y-1.5">
+                        <div class="flex justify-between items-center text-sm">
+                            <div class="flex items-center space-x-2">
+                                <span class="font-medium text-slate-800" x-text="item.name"></span>
+                                <span class="text-xs text-slate-400 font-mono" x-text="`(${item.department})`"></span>
+                            </div>
+                            <span class="text-xs font-semibold text-slate-600" x-text="`${item.interview_count} interviews (Max ${item.max_per_day}/day)`"></span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                            <div class="bg-brand-600 h-2.5 rounded-full transition-all duration-500"
+                                 :style="`width: ${Math.min((item.interview_count / (item.max_per_day * 3)) * 100, 100)}%`">
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- Candidate Pipeline Breakdown (1 col) -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+            <h2 class="text-lg font-bold text-slate-900">Candidate Pipeline</h2>
+            <div class="space-y-3 pt-2">
+                <div class="flex items-center justify-between p-3 rounded-xl bg-amber-50 border border-amber-100 text-sm">
+                    <div class="flex items-center space-x-2 text-amber-800 font-medium">
+                        <i data-lucide="mail" class="w-4 h-4"></i>
+                        <span>Invited (Awaiting Slot)</span>
+                    </div>
+                    <span class="font-bold text-amber-900 font-mono" x-text="pipeline.INVITED || 0">0</span>
+                </div>
+
+                <div class="flex items-center justify-between p-3 rounded-xl bg-indigo-50 border border-indigo-100 text-sm">
+                    <div class="flex items-center space-x-2 text-indigo-800 font-medium">
+                        <i data-lucide="calendar" class="w-4 h-4"></i>
+                        <span>Slot Scheduled</span>
+                    </div>
+                    <span class="font-bold text-indigo-900 font-mono" x-text="pipeline.SCHEDULED || 0">0</span>
+                </div>
+
+                <div class="flex items-center justify-between p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-sm">
+                    <div class="flex items-center space-x-2 text-emerald-800 font-medium">
+                        <i data-lucide="award" class="w-4 h-4"></i>
+                        <span>Recommended / Hired</span>
+                    </div>
+                    <span class="font-bold text-emerald-900 font-mono" x-text="pipeline.HIRED || 0">0</span>
+                </div>
+
+                <div class="flex items-center justify-between p-3 rounded-xl bg-rose-50 border border-rose-100 text-sm">
+                    <div class="flex items-center space-x-2 text-rose-800 font-medium">
+                        <i data-lucide="user-x" class="w-4 h-4"></i>
+                        <span>Rejected / Withdrawn</span>
+                    </div>
+                    <span class="font-bold text-rose-900 font-mono" x-text="pipeline.REJECTED || 0">0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Interviews Management Table -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden space-y-4 p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+                <h2 class="text-lg font-bold text-slate-900">Interviews Directory</h2>
+                <p class="text-xs text-slate-500">Live view of all upcoming and past interview sessions</p>
+            </div>
+            <!-- Status Filter Tabs -->
+            <div class="flex space-x-1 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+                <button @click="filterStatus = 'ALL'" :class="filterStatus === 'ALL' ? 'bg-white shadow text-slate-900' : 'text-slate-600 hover:text-slate-900'" class="px-3 py-1.5 rounded-lg transition">All</button>
+                <button @click="filterStatus = 'SCHEDULED'" :class="filterStatus === 'SCHEDULED' ? 'bg-white shadow text-slate-900' : 'text-slate-600 hover:text-slate-900'" class="px-3 py-1.5 rounded-lg transition">Scheduled</button>
+                <button @click="filterStatus = 'COMPLETED'" :class="filterStatus === 'COMPLETED' ? 'bg-white shadow text-slate-900' : 'text-slate-600 hover:text-slate-900'" class="px-3 py-1.5 rounded-lg transition">Completed</button>
+                <button @click="filterStatus = 'CANCELLED'" :class="filterStatus === 'CANCELLED' ? 'bg-white shadow text-slate-900' : 'text-slate-600 hover:text-slate-900'" class="px-3 py-1.5 rounded-lg transition">Cancelled</button>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="overflow-x-auto border border-slate-100 rounded-xl">
+            <table class="w-full text-left text-sm text-slate-600">
+                <thead class="bg-slate-50 text-slate-700 text-xs uppercase tracking-wider font-semibold border-b border-slate-200">
+                    <tr>
+                        <th class="py-3.5 px-4">Candidate</th>
+                        <th class="py-3.5 px-4">Job Role</th>
+                        <th class="py-3.5 px-4">Interviewer</th>
+                        <th class="py-3.5 px-4">Date & Time</th>
+                        <th class="py-3.5 px-4">Status</th>
+                        <th class="py-3.5 px-4 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 font-normal">
+                    <template x-for="item in filteredInterviews" :key="item.id">
+                        <tr class="hover:bg-slate-50/80 transition">
+                            <!-- Candidate -->
+                            <td class="py-3 px-4">
+                                <div class="font-semibold text-slate-900" x-text="item.candidate_name"></div>
+                                <div class="text-xs text-slate-400" x-text="item.candidate_email"></div>
+                            </td>
+                            <!-- Job -->
+                            <td class="py-3 px-4">
+                                <span class="font-medium text-slate-800" x-text="item.job_title"></span>
+                            </td>
+                            <!-- Interviewer -->
+                            <td class="py-3 px-4">
+                                <div class="font-medium text-slate-800" x-text="item.interviewer_name"></div>
+                            </td>
+                            <!-- Date & Time -->
+                            <td class="py-3 px-4 whitespace-nowrap">
+                                <div class="font-mono text-xs text-slate-700" x-text="formatDateTime(item.start_time)"></div>
+                            </td>
+                            <!-- Status -->
+                            <td class="py-3 px-4">
+                                <span :class="{
+                                    'bg-emerald-100 text-emerald-800 border-emerald-200': item.status === 'SCHEDULED',
+                                    'bg-blue-100 text-blue-800 border-blue-200': item.status === 'COMPLETED',
+                                    'bg-rose-100 text-rose-800 border-rose-200': item.status === 'CANCELLED'
+                                }" class="px-2.5 py-0.5 rounded-full text-xs font-semibold border inline-block" x-text="item.status"></span>
+                            </td>
+                            <!-- Actions -->
+                            <td class="py-3 px-4 text-right whitespace-nowrap space-x-1">
+                                <!-- Join Meeting -->
+                                <template x-if="item.status === 'SCHEDULED' && item.meeting_link">
+                                    <a :href="item.meeting_link" target="_blank" title="Join Video Room" class="inline-flex items-center px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-medium text-xs transition border border-emerald-200">
+                                        <i data-lucide="video" class="w-3.5 h-3.5 mr-1"></i> Join
+                                    </a>
+                                </template>
+                                <!-- Download .ics -->
+                                <a :href="`/api/booking/ics/${item.id}`" title="Download Calendar Invite (.ics)" class="inline-flex items-center px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 font-medium text-xs transition border border-slate-200">
+                                    <i data-lucide="calendar" class="w-3.5 h-3.5 mr-1"></i> .ics
+                                </a>
+                                <!-- Submit Feedback -->
+                                <template x-if="item.status === 'SCHEDULED'">
+                                    <a :href="`/feedback/${item.id}`" title="Submit Evaluation Scorecard" class="inline-flex items-center px-2.5 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-medium text-xs transition border border-indigo-200">
+                                        <i data-lucide="clipboard-check" class="w-3.5 h-3.5 mr-1"></i> Scorecard
+                                    </a>
+                                </template>
+                                <!-- View Feedback -->
+                                <template x-if="item.status === 'COMPLETED' && item.has_feedback">
+                                    <a :href="`/feedback/${item.id}`" title="View Scorecard" class="inline-flex items-center px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 font-medium text-xs transition border border-blue-200">
+                                        <i data-lucide="eye" class="w-3.5 h-3.5 mr-1"></i> View
+                                    </a>
+                                </template>
+                                <!-- Cancel Interview -->
+                                <template x-if="item.status === 'SCHEDULED'">
+                                    <button @click="cancelInterview(item.id)" title="Cancel Interview" class="inline-flex items-center px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 font-medium text-xs transition border border-rose-200">
+                                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                </template>
+                            </td>
+                        </tr>
+                    </template>
+                    <tr x-show="filteredInterviews.length === 0">
+                        <td colspan="6" class="text-center py-8 text-slate-400 text-sm">
+                            No interviews found matching the current filter.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function dashboardData() {
+    return {
+        metrics: {
+            total_interviews: 0,
+            scheduled_interviews: 0,
+            completed_interviews: 0,
+            cancelled_interviews: 0,
+            total_candidates: 0,
+            total_interviewers: 0,
+            total_jobs: 0
+        },
+        workload: [],
+        pipeline: {},
+        interviews: [],
+        filterStatus: 'ALL',
+
+        async init() {
+            await this.loadAnalytics();
+            await this.loadInterviews();
+            this.$nextTick(() => lucide.createIcons());
+        },
+
+        async loadAnalytics() {
+            try {
+                const res = await fetch('/api/analytics/dashboard');
+                const data = await res.json();
+                this.metrics = data.metrics;
+                this.workload = data.workload;
+                this.pipeline = data.pipeline;
+            } catch (err) {
+                console.error("Error loading analytics:", err);
+            }
+        },
+
+        async loadInterviews() {
+            try {
+                const res = await fetch('/api/interviews/');
+                this.interviews = await res.json();
+            } catch (err) {
+                console.error("Error loading interviews:", err);
+            }
+        },
+
+        get filteredInterviews() {
+            if (this.filterStatus === 'ALL') return this.interviews;
+            return this.interviews.filter(i => i.status === this.filterStatus);
+        },
+
+        formatDateTime(dateStr) {
+            if (!dateStr) return 'N/A';
+            const d = new Date(dateStr);
+            return d.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        },
+
+        async cancelInterview(id) {
+            if (!confirm("Are you sure you want to cancel this interview? The slot will be reopened for other candidates.")) return;
+            try {
+                const res = await fetch(`/api/interviews/${id}/cancel`, { method: 'POST' });
+                if (res.ok) {
+                    showToast("Interview cancelled and slot released.", "info");
+                    await this.init();
+                } else {
+                    showToast("Failed to cancel interview.", "error");
+                }
+            } catch (err) {
+                showToast("Network error.", "error");
+            }
+        }
+    }
+}
+</script>
+{% endblock %}

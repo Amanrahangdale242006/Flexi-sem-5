@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schedule Your Interview - AutoSchedule AI</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            800: '#3730a3',
+                            900: '#312e81',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.5/dist/cdn.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-100 via-indigo-50/40 to-slate-200 min-h-screen py-8 sm:py-12 px-4 flex items-center justify-center font-sans antialiased text-slate-800">
+
+    <div x-data="bookingPortal('{{ token }}')" x-init="init()" class="max-w-4xl w-full bg-white rounded-3xl shadow-2xl border border-slate-200/80 overflow-hidden">
+
+        <!-- Loading State -->
+        <div x-show="loading" class="p-16 text-center space-y-4">
+            <div class="inline-block animate-spin rounded-full h-10 w-10 border-4 border-brand-600 border-t-transparent"></div>
+            <p class="text-sm font-semibold text-slate-500">Loading interview details and matching available slots...</p>
+        </div>
+
+        <!-- Invalid Link State -->
+        <div x-show="!loading && error" x-cloak class="p-16 text-center space-y-4">
+            <div class="w-16 h-16 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+                <i data-lucide="alert-octagon" class="w-8 h-8"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-slate-900">Invalid or Expired Booking Link</h2>
+            <p class="text-slate-500 text-sm max-w-md mx-auto" x-text="error"></p>
+        </div>
+
+        <!-- Already Scheduled / Confirmed State -->
+        <div x-show="!loading && !error && isConfirmed" x-cloak class="p-8 sm:p-12 space-y-6">
+            <div class="text-center space-y-2">
+                <div class="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-sm">
+                    <i data-lucide="check-circle" class="w-8 h-8"></i>
+                </div>
+                <h2 class="text-2xl sm:text-3xl font-bold text-slate-900">Interview Confirmed!</h2>
+                <p class="text-slate-500 text-sm">We have reserved your slot. A calendar invitation is ready for download.</p>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-4 max-w-lg mx-auto">
+                <div class="flex items-center space-x-3 border-b border-slate-200 pb-3">
+                    <div class="w-10 h-10 rounded-xl bg-brand-600 text-white flex items-center justify-center font-bold">
+                        <i data-lucide="briefcase" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-900" x-text="candidateInfo.job_title"></h4>
+                        <p class="text-xs text-slate-500" x-text="candidateInfo.department"></p>
+                    </div>
+                </div>
+
+                <div class="space-y-2 text-sm text-slate-700">
+                    <div class="flex items-center space-x-2">
+                        <i data-lucide="calendar" class="w-4 h-4 text-brand-600"></i>
+                        <span class="font-semibold" x-text="formatDateTime(confirmedData.start_time)"></span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <i data-lucide="user-check" class="w-4 h-4 text-brand-600"></i>
+                        <span>Interviewer: <strong x-text="confirmedData.interviewer_name"></strong></span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <i data-lucide="video" class="w-4 h-4 text-brand-600"></i>
+                        <span>Format: <strong>45-Min Video Call</strong></span>
+                    </div>
+                </div>
+
+                <div class="pt-3 border-t border-slate-200 flex flex-col sm:flex-row gap-3">
+                    <a :href="confirmedData.meeting_link" target="_blank" class="flex-1 text-center px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-md shadow-emerald-600/20 transition flex items-center justify-center">
+                        <i data-lucide="video" class="w-4 h-4 mr-1.5"></i> Join Video Room
+                    </a>
+                    <a :href="`/api/booking/ics/${confirmedData.interview_id || confirmedData.id}`" class="flex-1 text-center px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold text-xs shadow-md shadow-brand-600/20 transition flex items-center justify-center">
+                        <i data-lucide="download" class="w-4 h-4 mr-1.5"></i> Add to Calendar (.ics)
+                    </a>
+                </div>
+            </div>
+
+            <div class="text-center text-xs text-slate-400">
+                Need to reschedule? Please contact recruiting@techcorp.com
+            </div>
+        </div>
+
+        <!-- Booking Flow (Selection Mode) -->
+        <div x-show="!loading && !error && !isConfirmed" x-cloak class="grid grid-cols-1 md:grid-cols-5 min-h-[550px]">
+            <!-- Left Column: Details & Instructions (2 cols) -->
+            <div class="md:col-span-2 bg-slate-50 p-6 sm:p-8 border-r border-slate-200 flex flex-col justify-between space-y-6">
+                <div class="space-y-4">
+                    <div class="inline-flex items-center space-x-2 text-brand-600">
+                        <i data-lucide="calendar-check" class="w-5 h-5"></i>
+                        <span class="text-xs font-bold uppercase tracking-wider">AutoSchedule AI</span>
+                    </div>
+
+                    <div>
+                        <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900" x-text="candidateInfo.job_title"></h2>
+                        <p class="text-xs text-slate-500 mt-1" x-text="`Department: ${candidateInfo.department}`"></p>
+                    </div>
+
+                    <div class="space-y-2.5 pt-2 text-xs text-slate-600">
+                        <div class="flex items-center space-x-2">
+                            <i data-lucide="clock" class="w-4 h-4 text-slate-400"></i>
+                            <span class="font-medium">45 Minutes Duration</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <i data-lucide="video" class="w-4 h-4 text-slate-400"></i>
+                            <span class="font-medium">Video Call (Webcam + Mic)</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <i data-lucide="user" class="w-4 h-4 text-slate-400"></i>
+                            <span>Invited: <strong x-text="candidateInfo.name"></strong></span>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-slate-200/80 space-y-2">
+                        <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Required Skills Assessed</p>
+                        <p class="text-xs text-slate-700 leading-relaxed font-medium" x-text="candidateInfo.required_skills || 'General Technical Assessment'"></p>
+                    </div>
+                </div>
+
+                <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-xs text-indigo-800 space-y-1">
+                    <p class="font-semibold flex items-center">
+                        <i data-lucide="sparkles" class="w-3.5 h-3.5 mr-1 text-indigo-600"></i> AI Matching Engine
+                    </p>
+                    <p class="text-[11px] text-indigo-600">
+                        The slots shown are automatically matched with qualified interviewers based on relevant technical competencies.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Right Column: Interactive Slot Picker (3 cols) -->
+            <div class="md:col-span-3 p-6 sm:p-8 flex flex-col justify-between space-y-6">
+                <div class="space-y-5">
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900">Select an Available Time Slot</h3>
+                        <p class="text-xs text-slate-500">Times are displayed in your local time zone</p>
+                    </div>
+
+                    <!-- Available Slots Grid -->
+                    <div class="space-y-3 max-h-[340px] overflow-y-auto pr-1">
+                        <template x-for="slot in availableSlots" :key="slot.slot_id">
+                            <button type="button" @click="selectedSlot = slot"
+                                    :class="selectedSlot && selectedSlot.slot_id === slot.slot_id ? 'border-brand-600 bg-brand-50/70 ring-2 ring-brand-500 text-brand-900' : 'border-slate-200 hover:border-brand-300 hover:bg-slate-50 text-slate-800'"
+                                    class="w-full text-left p-3.5 rounded-xl border transition flex items-center justify-between shadow-sm">
+                                <div class="space-y-0.5">
+                                    <div class="font-bold text-sm" x-text="formatDateTime(slot.start_time)"></div>
+                                    <div class="text-xs text-slate-500" x-text="`Interviewer: ${slot.interviewer_name} (${slot.interviewer_department})`"></div>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200" x-text="`${slot.match_score}% Skill Match`"></span>
+                                    <div class="w-4 h-4 rounded-full border flex items-center justify-center" :class="selectedSlot && selectedSlot.slot_id === slot.slot_id ? 'border-brand-600 bg-brand-600 text-white' : 'border-slate-300'">
+                                        <i data-lucide="check" class="w-3 h-3"></i>
+                                    </div>
+                                </div>
+                            </button>
+                        </template>
+
+                        <div x-show="availableSlots.length === 0" class="text-center py-12 text-slate-400 text-sm space-y-2">
+                            <i data-lucide="calendar-x" class="w-8 h-8 mx-auto text-slate-300"></i>
+                            <p>No available slots found at the moment.</p>
+                            <p class="text-xs">Please contact your recruiter to request additional slots.</p>
+                        </div>
+                    </div>
+
+                    <!-- Optional Notes -->
+                    <div x-show="selectedSlot" class="space-y-1.5 pt-2">
+                        <label class="block text-xs font-semibold text-slate-700">Any notes or questions for the interviewer? (Optional)</label>
+                        <input type="text" x-model="candidateNotes" placeholder="e.g. Excited to discuss my background in Python..." class="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="pt-4 border-t border-slate-100 flex items-center justify-between">
+                    <div class="text-xs text-slate-400">
+                        <span x-show="selectedSlot">Slot selected: <strong class="text-slate-700" x-text="formatTime(selectedSlot.start_time)"></strong></span>
+                    </div>
+                    <button type="button" @click="confirmBooking()" :disabled="!selectedSlot || submitting"
+                            :class="!selectedSlot || submitting ? 'opacity-50 cursor-not-allowed bg-slate-300' : 'bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-600/30'"
+                            class="px-6 py-2.5 rounded-xl font-semibold text-sm transition flex items-center space-x-2">
+                        <span x-show="!submitting">Confirm Interview</span>
+                        <span x-show="submitting">Reserving Slot...</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+    function bookingPortal(token) {
+        return {
+            token: token,
+            loading: true,
+            submitting: false,
+            error: null,
+            candidateInfo: {},
+            isConfirmed: false,
+            confirmedData: {},
+            availableSlots: [],
+            selectedSlot: null,
+            candidateNotes: '',
+
+            async init() {
+                try {
+                    // 1. Fetch Candidate & Job Details
+                    const res = await fetch(`/api/booking/details?token=${this.token}`);
+                    if (!res.ok) {
+                        const err = await res.json();
+                        this.error = err.detail || "Booking link not found";
+                        this.loading = false;
+                        this.$nextTick(() => lucide.createIcons());
+                        return;
+                    }
+
+                    const data = await res.json();
+                    this.candidateInfo = data.candidate;
+
+                    // If already scheduled
+                    if (data.existing_interview) {
+                        this.isConfirmed = true;
+                        this.confirmedData = data.existing_interview;
+                        this.loading = false;
+                        this.$nextTick(() => lucide.createIcons());
+                        return;
+                    }
+
+                    // 2. Fetch Available Slots from Matching Engine
+                    const slotsRes = await fetch(`/api/booking/available-slots?token=${this.token}`);
+                    if (slotsRes.ok) {
+                        this.availableSlots = await slotsRes.json();
+                    }
+
+                    this.loading = false;
+                    this.$nextTick(() => lucide.createIcons());
+                } catch (err) {
+                    this.error = "Failed to connect to the scheduling server.";
+                    this.loading = false;
+                    this.$nextTick(() => lucide.createIcons());
+                }
+            },
+
+            formatDateTime(dateStr) {
+                if (!dateStr) return '';
+                const d = new Date(dateStr);
+                return d.toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            },
+
+            formatTime(dateStr) {
+                if (!dateStr) return '';
+                const d = new Date(dateStr);
+                return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+            },
+
+            async confirmBooking() {
+                if (!this.selectedSlot) return;
+                this.submitting = true;
+
+                try {
+                    const res = await fetch('/api/booking/confirm', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            token: this.token,
+                            slot_id: this.selectedSlot.slot_id,
+                            notes: this.candidateNotes
+                        })
+                    });
+
+                    if (res.ok) {
+                        const result = await res.json();
+                        this.confirmedData = result;
+                        this.isConfirmed = true;
+                        this.$nextTick(() => lucide.createIcons());
+                    } else {
+                        const err = await res.json();
+                        alert(err.detail || "Unable to confirm this slot. It may have just been claimed.");
+                        // Refresh available slots
+                        await this.init();
+                    }
+                } catch (err) {
+                    alert("Network error while confirming booking.");
+                } finally {
+                    this.submitting = false;
+                }
+            }
+        }
+    }
+    </script>
+</body>
+</html>
